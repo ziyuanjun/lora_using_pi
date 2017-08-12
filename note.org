@@ -1,0 +1,49 @@
+RHF2S001 的用户名及密码登录,默认用户名 rxhf,密码 risinghf
+pi 的用户名及密码登录,默认用户名 pi,密码 Tell3Why?
+
+1. sudo raspi-config
+   1 Expand Filesystem ,扩展文件系统；
+   9 Advanced Options, SPI,默认开启SPI；
+  配置完重启，检查是否配置成功
+  $ls /dev/spi* 
+  // /dev/spidev0.0  /dev/spidev0.1, 则配置成功
+
+  raspi-config配置SPI失败时可以通过修改 ~/boot/config.txt~ 来打开SPI:
+   http://www.jianshu.com/p/47258276645f
+    
+2. 下载源文件并编译
+  #+BEGIN_SRC sh
+  git clone https://github.com/Lora-net/lora_gateway.git
+  git clone https://github.com/Lora-net/packet_forwarder.git
+  cd lora_gateway && make
+  cd packet_forwarder && make
+  #+END_SRC
+
+3. 配置global_conf local_conf
+   scp 拷贝文件：
+    scp 文件名用户名@计算机IP或者计算机名称:远程路径
+    scp 用户名@计算机IP或者计算机名称:文件名本地路径
+
+    扫描IP地址：
+    #+BEGIN_SRC sh
+    nmap -sP 192.168.1.0/24　
+    #+END_SRC
+
+   #+BEGIN_SRC sh
+   ln -sf rhf_json_files/global_conf_cn470.json global_conf.json
+   ln -sf rhf_json_files/local_conf.json local_conf.json
+   #+END_SRC
+4. 运行
+    运行 `reset_lgw`, 此步不可省！
+    #+BEGIN_SRC sh
+    cd lora_gateway
+    ./reset_lgw.sh start
+    #+END_SRC
+
+    运行 lora_pkt_fwd: 
+    #+BEGIN_SRC sh
+    cd packet_forwarder/lora_pkt_fwd
+    ./lora_pkt_fwd
+    #+END_SRC
+
+
