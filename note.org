@@ -1,6 +1,4 @@
-RHF2S001 的用户名及密码登录,默认用户名 rxhf,密码 risinghf
-pi 的用户名及密码登录,默认用户名 pi,密码 Tell3Why?
-
+* 步骤
 1. sudo raspi-config
    1 Expand Filesystem ,扩展文件系统；
    9 Advanced Options, SPI,默认开启SPI；
@@ -47,3 +45,14 @@ pi 的用户名及密码登录,默认用户名 pi,密码 Tell3Why?
     #+END_SRC
 
 
+
+* 备忘 :secret:
+-----BEGIN PGP MESSAGE-----
+Version: GnuPG v2
+
+jA0EBwMC80LibR4J/IDn0owB9eRi+MyX52on42Cj9o7k6xVcMtZ8eQGba+NwtJlT
+wqPWwT7PhCmMjrh37xnOBE2f6Z3vMWV8muBmBnMyIjMbbhARzVWXYqiuBSzWd+/z
+4Z8lL/4G7FKxQLyiEVDan1cb6KSJO4ZaBd7141jxAnD7Nxgu4Oru1sD/eN4f+1iN
+jBf1cKJKfMdgXcoJlw==
+=hBX4
+-----END PGP MESSAGE-----
