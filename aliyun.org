@@ -1,0 +1,18 @@
+* 服务器使用介绍
+阿里云
+地址 47.93.240.104
+用户名 root
+密码 Lorawan4
+
+** loraserver
+(1) cd /opt/go/loraserver
+(2) docker-compose run --service-ports --rm loraserver bash
+(3) ./build/loraserver --band CN_470_510 --as-server 172.18.0.8:8001 --log-node-frames true
+** lora-app-server
+(1) cd /opt/go/lora-app-server
+(2) docker-compose run --service-ports --rm appserver bash
+(3) ./build/lora-app-server --jwt-secret lorawan --http-tls-cert /etc/lora-app-server/certs/http.pem --http-tls-key /etc/lora-app-server/certs/http-key.pem --ns-server 172.18.0.2:8000
+** lora-gateway-bridge 
+/usr/bin/lora-gateway-bridge –mqtt-server tcp://localhost:1883
+
+用浏览器打开 https://47.93.240.104:8080  即可操作。
