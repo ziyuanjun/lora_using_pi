@@ -64,6 +64,8 @@
     https://mosquitto.org/download/
     
 **** 安装步骤
+     - win
+       http://www.steves-internet-guide.com/install-mosquitto-broker/
      - ubuntu安装(非源码安装)
         https://howtoprogram.xyz/2016/10/15/install-mosquitto-mqtt-broker-ubuntu-16-04-lts-xenial-xerus/
         #+BEGIN_SRC sh
@@ -149,9 +151,9 @@
         #+BEGIN_SRC sh
         sudo apt-get install uuid-dev
         #+END_SRC
-        安装后无效。
+        安装后依然无效。
         这似乎是一个 bug, [[https://github.com/eclipse/mosquitto/issues/496][参见github]]， 于是果断把设WITH_WEBSOCKETS 为no, 然后 make clean; make; 成功！
-        这是已经能在路径/usr/local/include/下发现 mosquitto.h 文件了。
+        这时已经能在路径/usr/local/include/下发现 mosquitto.h 文件了。
 
         另 [[https://goochgooch.wordpress.com/2014/08/01/building-mosquitto-1-4/][ubuntu的踩坑1]], [[https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04][坑2]] 。
      2. 编译例子
