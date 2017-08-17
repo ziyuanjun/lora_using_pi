@@ -82,19 +82,57 @@
         #+END_SRC
 
         安装成功后测试：
-        - Checking status of the broker
-          #+BEGIN_SRC sh
-          sudo /etc/init.d/mosquitto status
-          #+END_SRC
-        - Starting the Mosquitto broker
-          #+BEGIN_SRC sh
-          sudo /etc/init.d/mosquitto start
-          #+END_SRC
-        - Stopping the broker
-          #+BEGIN_SRC sh
-          sudo /etc/init.d/mosquitto stop
-          #+END_SRC
-     - pi安装
+       - Checking status of the broker
+         #+BEGIN_SRC sh
+         sudo /etc/init.d/mosquitto status
+         #+END_SRC
+       - Starting the Mosquitto broker
+         #+BEGIN_SRC sh
+         sudo /etc/init.d/mosquitto start
+         #+END_SRC
+       - Stopping the broker
+         #+BEGIN_SRC sh
+         sudo /etc/init.d/mosquitto stop
+         #+END_SRC
+     - pi安装(源码安装)
+       #+BEGIN_SRC sh
+       wget http://mosquitto.org/files/source/mosquitto-1.4.14.tar.gz
+       tar -xzvf mosquitto-1.4.14.tar.gz
+       cd mosquitto-1.4.14
+       #+END_SRC
+
+       此时make 会出错：
+       #+BEGIN_QUOTE
+       fatal error: openssl/ssl.h: 没有那个文件或目录
+       #+END_QUOTE
+       解决方式：
+       #+BEGIN_SRC sh
+       sudo apt-get install libssl-dev
+       #+END_SRC
+
+        报错：
+       #+BEGIN_QUOTE
+       fatal error: ares.h: 没有那个文件或目录
+       #+END_QUOTE
+       解决方式：
+       #+BEGIN_SRC sh
+       sudo apt-get install libc-ares-dev
+       #+END_SRC
+        报错：
+       #+BEGIN_QUOTE
+       fatal error: uuid/uuid.h: 没有那个文件或目录
+       #+END_QUOTE
+       解决方式：
+       #+BEGIN_SRC sh
+       sudo apt-get install uuid-dev
+       #+END_SRC
+      
+
+       #+BEGIN_SRC sh
+       make
+       sudo make install
+       #+END_SRC
+
 
 **** 在C语言中使用 mosquitto
      https://mosquitto.org/man/libmosquitto-3.html
@@ -142,7 +180,9 @@
         #+END_SRC
         发现 libwebsockets.h 的位置：
         /usr/local/include/libwebsockets.h
-        可以想象，如果 mosquitto 编译成功，相应的 .h 文件也就能进入 include 路径了。
+        可以想象，如果 mosquitto 编译成功，相应的 .h 文件也就能进入 include 路径了。这个路径在 config.mk 中是有设置的：
+        即prefix=/usr/local。
+
         再次编译 mosquitto, 还是报错：
         #+BEGIN_QUOTE
         loop.c:492:22: error: storage size of ‘wspoll’ isn’t known struct lws_pollfd wspoll;
