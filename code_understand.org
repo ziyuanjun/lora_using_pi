@@ -1,0 +1,134 @@
+* 分析 lora_pkt_fwd.c 的流程：
+
+** main()
+   - 解析配置文件
+     - 1301
+     - gateway
+     - lora_cfg
+     - gps (if exist)
+     同时完成设置
+   - 设置时区
+   - 建立 UDP 连接
+     - sockt_up
+     - sockt_down
+   - 启动 lgw [[lgw_start()]]
+   - 建立 [[thread_up(void)][up 线程]]
+     sockt_up
+   - 建立 down 线程
+   - 建立 jit 线程
+   - 建立 timersync 线程
+   - 建立 gps 线程 (if exist)
+     - 建立 timersync 线程
+   - 注册信号 (linux 系统信号)
+   - *进入循环*：
+     - 等待
+     - 获得时间
+     - 统计 upstream 数据包，并对计数清零
+     - 统计 downstrean 数据包，并对计数清零
+     - 统计 gps 数据包，并对计数清零
+     - 打印报告
+     - 获得时间戳
+     - 打印 jit 报告
+     - 打印 gps 报告
+     - 生成 JSON 报告，发送到 server
+   - 结束 up 线程
+   - 结束 down 线程
+   - 结束 jit 线程
+   - 结束 timesync 线程
+   - 结束 gps 线程
+
+** thread_up(void)
+   - 分配 buffer 空间：
+     - uint8_t buff_up[TX_BUFF_SIZE]
+       uint8_t buff_ack[32]
+
+   - 设置 sockt_up RX timeout
+   - 填充 data buffer 中值为固定值的部分
+     - 协议版本、MAC 地址
+   - *进入循环*:
+     - 接收packets [[lgw_recive()][lgw_receive()]], 根据返回值得到了 pkt 数量
+     - 满足如下条件，跳出循环：
+       - [[lgw_recive()][lgw_receive()]] 返回 -1
+     - check if there are status report to send
+     - wait 10ms if no packets or no status report. 并且*continue*
+     - get a copy of GPS time reference
+     - 构建数据报报头
+     - 构建JSON structure
+     - serialize Lora packets metadata and payload *逐个* pkt 完成如下操作：
+       - Get mote information from current packet (addr, fcnt)
+       - basic packet filtering
+       - 如果 pkt 的CRC不正常跳过当前 pkt
+       - Start of packet, add inter-packet separator if necessary
+       - RAW timestamp, 8-17 useful chars
+       - Packet RX time (GPS based), 37 useful chars
+       - Packet concentrator channel, RF chain & RX frequency, 34-36 useful chars
+       - Packet status, 9-10 useful chars
+       - Packet modulation, 13-14 useful chars
+       - Packet RSSI, payload size, 18-23 useful chars
+       - Packet base64-encoded payload, 14-350 useful chars
+       - End of packet serialization
+     - 如果所有 pkt 都被过滤了，且不需报告（发送JSON），则 *continue*
+     - 加入结束符： ']' ,如需报告，继续加分割符 ','
+     - add status report if a new one is available
+     - end of JSON datagram payload
+     - send datagram to server
+     - wait for acknowledge (in 2 times, to catch extra packets)
+       从 sockt_up 接收数据
+   - 打印线程结束提示 
+
+** lgw_start()
+   - 重启 lora concentrator
+   - 重置 reg
+   - 写 clocks
+   - 打开、（等待0.5s）、重置射频（A & B)
+   - 设置 radio 参数
+   - 设置 AGC 控制
+   - 配置 LBT
+   - 启动 clocks
+   - 校准
+   - 加载固件校准参数
+   - 移交控制权给 MCU
+   - 发送校准字
+   - 检查固件版本
+   - 控制权交给 MCU
+   - 校准
+   - 等待 2.3s
+   - 获得校准状态
+   - 获得 TX DC offset
+   - ..
+   - GPS 使能
+   - 等待 8.4s
+   - 返回
+
+** lgw_recive()
+   函数传入最大要接收的 pkt 个数，以及 pkt 结构体数组指针
+   - 下面情况返回 -1
+    - concentrator 不正常运行
+    - 输入参数不合理
+   - 创建读取 SPI 的 buff 数组
+   - Initialize buffer
+   - 循环多次，次数为获得的 pkt 个数
+     - fetch all the RX FIFO data, 数据读入buff的第0-5字节中
+       [[lgw_reg_rb()][lgw_reg_rb]](LGW_RX_PACKET_DATA_FIFO_NUM_STORED, buff, 5)
+       - 0:   number of packets available in RX data buffer 
+       - 1,2: start address of the current packet in RX data buffer 
+       - 3:   CRC status of the current packet 
+       - 4:   size of the current packet payload in byte 
+     - 满足以下条件，跳出循环：
+       - buff[0]==0,表示读完FIFO 中所有 packets,
+       - 数据无效
+     - 将 buff 信息存入pkt_data 的第 n 个元素中
+     - get payload + metadata
+        [[lgw_reg_rb()][lgw_reg_rb]](LGW_RX_DATA_BUF_DATA, buff, buff[4]+RX_METADATA_NB);
+     - 将 buff 信息存入pkt_data 的第 n 个元素的 payload 中 
+     - process metadata (最多有10个 if chain)
+     - 根据不同的 ifmod 完成
+       - timestamp correction
+       - RSSI correction
+     - advance packet FIFO 
+   - return nb_pkt_fetch
+
+** lgw_reg_rb()
+
+ Point to a register by name and do a burst read.
+ 函数调用了 lgw_spi_rb() 从 SPI 读入数据
