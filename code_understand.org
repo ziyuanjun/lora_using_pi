@@ -14,7 +14,7 @@
    - 启动 lgw [[lgw_start()]]
    - 建立 [[thread_up(void)][up 线程]]
      sockt_up
-   - 建立 down 线程
+   - 建立 [[thread_down(void)][down 线程]]
    - 建立 jit 线程
    - 建立 timersync 线程
    - 建立 gps 线程 (if exist)
@@ -74,7 +74,49 @@
      - send datagram to server
      - wait for acknowledge (in 2 times, to catch extra packets)
        从 sockt_up 接收数据
+       使用系统函数 clock_gettime 记录接收时间 recv_time
    - 打印线程结束提示 
+
+** thread_down(void)
+   PULLING SERVER AND ENQUEUING PACKETS IN JIT QUEUE 
+   - 分配 buffer 空间：
+     - uint8_t buff_down[1000]
+       uint8_t buff_req[12]
+
+   - 设置 sockt_down RX timeout
+   - 填充 data buffer 中值为固定值的部分
+     - 协议版本、MAC 地址
+   - beacon initialization 
+   - 计算经纬度，填入 beacon_pkt.payload
+   - RFU, 填入 beacon_pkt.payload
+   - CRC, 填入 beacon_pkt.payload
+   - JIT queue initialization
+     [[jit_queue_init(*queue)][jit_queue_init]](&jit_queue)
+   - *进入循环*:
+     - 判断在若干次 PULL Data 无应答后，是否自动退出
+     - 发送 PULL 请求并记录时间
+       使用 sockt_down 发送 buff_req
+       使用系统函数 clock_gettime 记录发送时间 send_time
+       #+BEGIN_SRC C
+       recv_time = send_time;
+       #+END_SRC
+     - 在接收时间窗口内*循环读 sockt_down 接收数据报*:
+       - 尝试接收 sockt_down
+       - 更新接收时间
+       - 逐个处理 jitqueue 中排队的 beacon, 处理条件：(beacon_loop && (beacon_period != 0))
+         - 关于条件：
+           - jitqueue 是3个一组进行排队的，任意时刻都有3(JIT_NUM_BEACON_IN_QUEUE)个 beacon 在排队
+             #+BEGIN_SRC C
+             beacon_loop = JIT_NUM_BEACON_IN_QUEUE - jit_queue.num_beacon;
+             #+END_SRC
+             jitqueue.num_beacon 应该在入队出队时发生改变
+
+           - beacon_period 是等待时间，该值从 .json 文件中读到，但 global 和 local 都未设该值，应该没有读到，所以为0。
+             因此程序未进入 jitqueue 排队处理
+         - 将 beacon 入 jitqueue，处理条件：GPS准备好
+           - 关于条件：设备并没有GPS, 进一步说明，没有 queue 处理。
+           - 
+
 
 ** lgw_start()
    - 重启 lora concentrator
@@ -103,8 +145,8 @@
 ** lgw_recive()
    函数传入最大要接收的 pkt 个数，以及 pkt 结构体数组指针
    - 下面情况返回 -1
-    - concentrator 不正常运行
-    - 输入参数不合理
+     - concentrator 不正常运行
+     - 输入参数不合理
    - 创建读取 SPI 的 buff 数组
    - Initialize buffer
    - 循环多次，次数为获得的 pkt 个数
@@ -119,7 +161,7 @@
        - 数据无效
      - 将 buff 信息存入pkt_data 的第 n 个元素中
      - get payload + metadata
-        [[lgw_reg_rb()][lgw_reg_rb]](LGW_RX_DATA_BUF_DATA, buff, buff[4]+RX_METADATA_NB);
+       [[lgw_reg_rb()][lgw_reg_rb]](LGW_RX_DATA_BUF_DATA, buff, buff[4]+RX_METADATA_NB);
      - 将 buff 信息存入pkt_data 的第 n 个元素的 payload 中 
      - process metadata (最多有10个 if chain)
      - 根据不同的 ifmod 完成
@@ -130,5 +172,15 @@
 
 ** lgw_reg_rb()
 
- Point to a register by name and do a burst read.
- 函数调用了 lgw_spi_rb() 从 SPI 读入数据
+   Point to a register by name and do a burst read.
+   函数调用了 lgw_spi_rb() 从 SPI 读入数据
+** jit_queue_init(*queue)
+   一个 queue 可以存放 32 个（JIT_QUEUE_MAX）node/pkt, 初始化这个空间
+
+   #+BEGIN_SRC C
+   struct jit_queue_s {
+     uint8_t num_pkt;                /* Total number of packets in the queue (downlinks, beacons...) */
+     uint8_t num_beacon;             /* Number of beacons in the queue */
+     struct jit_node_s nodes[JIT_QUEUE_MAX]; /* Nodes/packets array in the queue */
+   };
+   #+END_SRC
