@@ -82,7 +82,6 @@
    - 分配 buffer 空间：
      - uint8_t buff_down[1000]
        uint8_t buff_req[12]
-
    - 设置 sockt_down RX timeout
    - 填充 data buffer 中值为固定值的部分
      - 协议版本、MAC 地址
@@ -102,6 +101,9 @@
        #+END_SRC
      - 在接收时间窗口内*循环读 sockt_down 接收数据报*:
        - 尝试接收 sockt_down
+         #+BEGIN_SRC C
+         msg_len = recv(sock_down, (void *)buff_down, (sizeof buff_down)-1, 0);
+         #+END_SRC
        - 更新接收时间
        - 逐个处理 jitqueue 中排队的 beacon, 处理条件：(beacon_loop && (beacon_period != 0))
          - 关于条件：
@@ -110,12 +112,57 @@
              beacon_loop = JIT_NUM_BEACON_IN_QUEUE - jit_queue.num_beacon;
              #+END_SRC
              jitqueue.num_beacon 应该在入队出队时发生改变
-
            - beacon_period 是等待时间，该值从 .json 文件中读到，但 global 和 local 都未设该值，应该没有读到，所以为0。
              因此程序未进入 jitqueue 排队处理
-         - 将 beacon 入 jitqueue，处理条件：GPS准备好
+         - 将 beacon 入 jitqueue，处理条件：GPS准备好 && xtal[fn:1] error correction is OK.
            - 关于条件：设备并没有GPS, 进一步说明，没有 queue 处理。
-           - 
+             条件不满足就什么也不做
+           - 计算下一个 beacon 到达的GPS 时间
+               根据LoRaWAN 协议: T = k*beacon_period + TBeaconDelay。其中，TBeaconDelay = [1.5ms +/- 1µs]
+             此处计算用到了 GPS 参考时钟：time_reference_gps, 这个时钟是在 GPS 线程中得到了校准的。
+           - 将 GPS 时间转换为 concentrator time, 并给 JiT 设置 packet 计数器
+           - 校正 beacon 的发送时间
+           - 计算 beacon 的频率
+           - 计算 CRC 使用函数 crc16()
+           - Insert beacon packet in JiT queue
+             get_concentrator_time
+             jit_result = [[jit_enqueue()][jit_enqueue()]]
+           - 如果 jit_result == JIT_ERROR_OK,则
+             - update stats
+             - beacon_loop--;
+               retry = 0;
+               gps 时间更新
+             - display beacon payload
+           - 否则
+             update stats && retry++
+       - 如果没有网络数据，continue, 继续尝试接收
+       - 如果接收的网络数据长度不正常，直接忽略这些数据，continue, 继续尝试接收
+       - 如果网络数据是一个 ACK 包，则进一步检查 token, 统计，continue, 继续尝试接收
+       - 如果网络数据是一个 Pull 请求，则
+         - 初始化接收结构
+         - 尝试解析 JSON, 解析失败则continue
+         - 查找 JSON 的 txpk 对象，未查到则 continue
+         - 解析 时间标签，失败则 continue
+         - 解析 "No CRC" 标签 (允许失败)
+         - 解析目标频率 freq, 失败则 continue
+         - 解析发射的 RF chain ,失败则 continue
+         - 解析发射功率(允许失败)
+         - 解析调制方式，失败则 continue
+           - 调制方式有两种：LORA 和 FSK
+         - 解析 payload 长度，失败则 continue
+         - 解析 payload 数据，失败则 continue
+         - 设置txpkt 的发射模式（即时 or 时间戳）
+         - 计算统计值
+         - 在将 packet 入队前，检查其合理性
+           - 频率满足条件
+           - 功率满足条件
+         - 将要发射的packet 插入jitqueue 中
+             get_concentrator_time
+             jit_result = [[jit_enqueue()][jit_enqueue()]]
+         - Send acknoledge datagram to server
+           [[send_tx_ack()][send_tx_ack]] (buff_down[1], buff_down[2], jit_result);
+           这个函数最终 [[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::971][调用了sock_down]] 的send 函数。
+   - 打印线程结束提示 
 
 
 ** lgw_start()
@@ -184,3 +231,58 @@
      struct jit_node_s nodes[JIT_QUEUE_MAX]; /* Nodes/packets array in the queue */
    };
    #+END_SRC
+** jit_enqueue()
+   #+BEGIN_SRC C
+   enum jit_error_e jit_enqueue(struct jit_queue_s *queue, struct timeval *time, struct lgw_pkt_tx_s *packet,
+                                enum jit_pkt_type_e pkt_type){...}
+   #+END_SRC
+   1. 在这个入队函数中，会根据入队的packet 类型计算发送延迟：
+      #+BEGIN_SRC C
+      /* Compute packet pre/post delays depending on packet's type */
+      switch (pkt_type) {
+          case JIT_PKT_TYPE_DOWNLINK_CLASS_A:
+          case JIT_PKT_TYPE_DOWNLINK_CLASS_B:
+          case JIT_PKT_TYPE_DOWNLINK_CLASS_C:
+              packet_pre_delay = TX_START_DELAY + TX_JIT_DELAY;
+              packet_post_delay = lgw_time_on_air(packet) * 1000UL; /* in us */
+              break;
+          case JIT_PKT_TYPE_BEACON:
+              /* As defined in LoRaWAN spec */
+              packet_pre_delay = TX_START_DELAY + BEACON_GUARD + TX_JIT_DELAY;
+              packet_post_delay = BEACON_RESERVED;
+              break;
+          default:
+              break;
+      }
+      #+END_SRC
+   2. 通过设置 packet->count_us 将  immediate downlink 变为 timestamped downlink "ASAP":
+      从[[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::34][jitqueue.c]] 中可以看出，BEACON_GUARD 有3000秒（50分钟）之长！TX_JIT_DELAY 也有 30000 ms (半分钟)。可见 beacon 的发送间隔是很大的。
+
+      Lora 协议中的几种发射时延，参考[[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::238][jitqueue.c代码注释]]：
+      * Class A: downlink has to be sent in a 1s or 2s time window after RX
+      * Class B: downlink has to occur in a 128s time window
+      * Class C: no check needed, departure time has been calculated previously
+   3. 利用几个准则确保 packet->count_us 的合理性：
+      * [[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::224][criteria_1]] : packet 的时间不能太晚。
+      * [[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::238][criteria_2]] : 满足lora 协议Class A、B、C
+      * [[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::257][criteria_3]] : 不能与已有的 packet 时间重合
+   4. 检查通过后，enqueue packet
+      从[[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::306][这里]] 可以看出，beacon 是一种特殊的 packet:
+      #+BEGIN_SRC C
+      if (pkt_type == JIT_PKT_TYPE_BEACON) {
+        queue->num_beacon++;
+      }
+      queue->num_pkt++;
+      #+END_SRC
+   5. 将队列中的 packet 按时间戳升序排列
+      [[jit_sort_queue(queue)][jit_sort_queue(queue)]]
+   6. 打印 jitqueue
+      [[jit_print_queue()][jit_print_queue]](queue, false, DEBUG_JIT);
+   7. 返回 JIT_ERROR_OK
+
+** jit_sort_queue(queue)
+** jit_print_queue()
+** send_tx_ack()
+* Footnotes
+
+[fn:1] XTAL ― 这应该是跟Lora 协议中 Class B 相关的概念
