@@ -15,7 +15,7 @@
    - 建立 [[thread_up(void)][up 线程]]
      sockt_up
    - 建立 [[thread_down(void)][down 线程]]
-   - 建立 jit 线程
+   - 建立 [[thread_jit(void)][jit 线程]]
    - 建立 timersync 线程
    - 建立 gps 线程 (if exist)
      - 建立 timersync 线程
@@ -164,6 +164,21 @@
            这个函数最终 [[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/jitqueue.c::971][调用了sock_down]] 的send 函数。
    - 打印线程结束提示 
 
+** thread_jit(void)
+- 进入循环
+  - 等待10ms
+  - 将 data 和 metadata 发送给 concentrator, 并安排发射日程
+      gettimeofday(&current_unix_time, NULL);
+      get_concentrator_time(&current_concentrator_time, current_unix_time);
+      jit_result = [[jit_peek()][jit_peek]](&jit_queue, &current_concentrator_time, &pkt_index);
+    - 如果 jit_result == JIT_ERROR_OK:
+      - 如果 (pkt_index > -1)
+        - jit_result = [[jit_dequeue()][jit_dequeue]](&jit_queue, pkt_index, &pkt, &pkt_type);
+        - 如果 jit_result == JIT_ERROR_OK
+          - 更新pkt 的必要信息
+          - 检查 concentrator 是否可以发射，不满足发射条件 则 continue
+          - 发射 pkt :  result = lgw_send(pkt)
+          - 检查发射是否成功，并打印提示
 
 ** lgw_start()
    - 重启 lora concentrator
@@ -280,8 +295,12 @@
       [[jit_print_queue()][jit_print_queue]](queue, false, DEBUG_JIT);
    7. 返回 JIT_ERROR_OK
 
+** jit_dequeue()
+   把 pkt 出队列，是当前时刻最满足发射条件的 pkt
 ** jit_sort_queue(queue)
 ** jit_print_queue()
+** jit_peek()
+   完成优先级排序，去除不可能发送的pkt
 ** send_tx_ack()
 * Footnotes
 
