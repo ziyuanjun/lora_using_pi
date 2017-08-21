@@ -195,7 +195,7 @@
         这似乎是一个 bug, [[https://github.com/eclipse/mosquitto/issues/496][参见github]]， 于是果断把设WITH_WEBSOCKETS 为no, 然后 make clean; make; 成功！
         这时已经能在路径/usr/local/include/下发现 mosquitto.h 文件了。
 
-        另 [[https://goochgooch.wordpress.com/2014/08/01/building-mosquitto-1-4/][ubuntu的踩坑1]], [[https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04][坑2]] 。
+        另 [[https://goochgooch.wordpress.com/2014/08/01/building-mosquitto-1-4/][ubuntu的踩坑1]], [[https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04][坑2]] 。编译成功后还需要[[mqtt_config][配置]]。
      2. 编译例子
         #+BEGIN_SRC sh
         gcc -c mosquitto_test.c
@@ -221,8 +221,7 @@
         mosquitto_test.c:(.text+0x28d): undefined reference to `mosquitto_lib_cleanup'
         collect2: error: ld returned 1 exit status
         #+END_QUOTE
-        我怀疑这个例子的正确性！
-        这个例子可能是在 windows 系统中运行的。
+        +我怀疑这个例子的正确性！这个例子可能是在 windows 系统中运行的。+
 
         [[https://stackoverflow.com/questions/19707329/how-to-compile-using-libmosquitto][正确答案]] 是要使用动态链接：
         #+BEGIN_SRC sh
@@ -233,7 +232,30 @@
         gcc -o mosquito mosquito.c -lmosquitto
         #+END_SRC
         解析：
-        -lmosquitto 告诉编译器要链接 libmosquitto 库，编译器默认会找的目录可以用 -print-search-dirs 选项查看（其中的 libraries 就是库文件的搜索路径列表,各路径之间用 : 号隔开），可以看到有 /usr/local/lib , libmosquitto.so 就在该目录下。对于-lmosquitto, 编译器会首先找有没有共享库 libstack.so ,如果有就链接它,如果没有就找有没有静态库 libstack.a ,如果有就链接它。所以编译器是优先考虑共享库的,如果希望编译器只链接静态库,可以指定 -static 选项。
+        -lmosquitto 告诉编译器要链接 libmosquitto 库，编译器默认会找的目录可以用gcc -print-search-dirs 查看（其中的 libraries 就是库文件的搜索路径列表,各路径之间用 : 号隔开），可以看到有 /usr/local/lib , libmosquitto.so 就在该目录下。对于-lmosquitto, 编译器会首先找有没有共享库 libstack.so ,如果有就链接它,如果没有就找有没有静态库 libstack.a ,如果有就链接它。所以编译器是优先考虑共享库的,如果希望编译器只链接静态库,可以指定 -static 选项。
+
+***** pi 中使用 mosquito
+      在 pi 中重复上述步骤，出现如下问题：
+      1. 编译成功，但运行时报错
+         "Can't initialize Mosquitto library"
+
+         解决：
+         运行 gcc -print-search-dirs 发现路径中不包含 /usr/local/lib, 于是修改 Makefile 文件使用 -I 选项加入该路径。
+
+      2. 加入 库路径后，编译成功，但运行时报错：
+         Can't connect to Mosquitto server
+
+         应该是 mosquito 服务没有运行起来。通过[[https://goochgooch.wordpress.com/2014/08/01/building-mosquitto-1-4/][ubuntu的踩坑1]] 发现源码安装后，还有一个重要的步骤，就是配置！<<mqtt_config>>
+         #+BEGIN_SRC sh
+         sudo vi /etc/mosquitto/mosquitto.conf
+         sudo useradd -r -m -d /var/lib/mosquitto -s /usr/sbin/nologin -g nogroup mosquitto
+         #+END_SRC
+         上面的 vi 操作只是创建了一个空文件。然后用下面的命令启动 :
+         #+BEGIN_SRC sh
+         sudo /usr/local/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf
+         #+END_SRC
+
+
 
 
 
