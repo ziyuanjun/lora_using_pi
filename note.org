@@ -255,6 +255,13 @@
          sudo /usr/local/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf
          #+END_SRC
 
+      3. 成功在pi 中运行 mosquito-test:
+         - 启动 mosquito
+         - ./test-sub
+         - ./test-pub
+
+         #+ATTR_ORG: :width 900
+         [[file:note.org_imgs/20170821_094230_3908q8M.png]]
 
 
 
