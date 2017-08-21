@@ -44,7 +44,6 @@
      ./lora_pkt_fwd
      #+END_SRC
 
-
 * 使用 MQTT
 ** 选择合适的MQTT客户端的C语言实现
 *** eclipse
@@ -132,7 +131,6 @@
        make
        sudo make install
        #+END_SRC
-
 
 **** 在C语言中使用 mosquitto
      https://mosquitto.org/man/libmosquitto-3.html
@@ -262,7 +260,6 @@
 
          #+ATTR_ORG: :width 900
          [[file:note.org_imgs/20170821_094230_3908q8M.png]]
-
 
 
 
