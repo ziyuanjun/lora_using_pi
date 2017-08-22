@@ -66,21 +66,21 @@
      - win
        http://www.steves-internet-guide.com/install-mosquitto-broker/
      - ubuntu安装(非源码安装)
-        https://howtoprogram.xyz/2016/10/15/install-mosquitto-mqtt-broker-ubuntu-16-04-lts-xenial-xerus/
-        #+BEGIN_SRC sh
-        sudo add-apt-repository ppa:mosquitto-dev/mosquitto-ppa
-        sudo apt-get update
-        sudo apt-get install mosquitto
-        sudo apt-get install mosquitto-clients
-        #+END_SRC
+       https://howtoprogram.xyz/2016/10/15/install-mosquitto-mqtt-broker-ubuntu-16-04-lts-xenial-xerus/
+       #+BEGIN_SRC sh
+       sudo add-apt-repository ppa:mosquitto-dev/mosquitto-ppa
+       sudo apt-get update
+       sudo apt-get install mosquitto
+       sudo apt-get install mosquitto-clients
+       #+END_SRC
 
        上述方式后， mosquitto 似乎并没有成功安装，使用如下命令安装成功：
-        #+BEGIN_SRC sh
-        sudo apt install mosquitto
-        sudo apt install mosquitto-clients
-        #+END_SRC
+       #+BEGIN_SRC sh
+       sudo apt install mosquitto
+       sudo apt install mosquitto-clients
+       #+END_SRC
 
-        安装成功后测试：
+       安装成功后测试：
        - Checking status of the broker
          #+BEGIN_SRC sh
          sudo /etc/init.d/mosquitto status
@@ -109,7 +109,7 @@
        sudo apt-get install libssl-dev
        #+END_SRC
 
-        报错：
+       报错：
        #+BEGIN_QUOTE
        fatal error: ares.h: 没有那个文件或目录
        #+END_QUOTE
@@ -117,7 +117,7 @@
        #+BEGIN_SRC sh
        sudo apt-get install libc-ares-dev
        #+END_SRC
-        报错：
+       报错：
        #+BEGIN_QUOTE
        fatal error: uuid/uuid.h: 没有那个文件或目录
        #+END_QUOTE
@@ -127,10 +127,10 @@
        #+END_SRC
       
 
-       #+BEGIN_SRC sh
-       make
-       sudo make install
-       #+END_SRC
+     #+BEGIN_SRC sh
+     make
+     sudo make install
+     #+END_SRC
 
 **** 在C语言中使用 mosquitto
      https://mosquitto.org/man/libmosquitto-3.html
@@ -284,17 +284,35 @@
 **** 实践
      [[https://mosquitto.org/api/index/Functions.html][mosquito API]]
 
-* 备忘 :secret:
------BEGIN PGP MESSAGE-----
-Version: GnuPG v2
+* GPS
 
-jA0EBwMC8zSXGRaRECbk0sB/AcsUqPslprbHoHRQ5GPC0Qu3eZJT6wiJKPJTA7u7
-6tMjxejzM21We1hTnp/3pv4s+cKfA2QvoG/l4x8ZMQw4WrCysJgESbODkXf0PkRd
-sTVqPLKZTYyAiLKRn2iChVrWil3S1Wfpf+eTxFOGnFU6JMyL3Pp3lTq0+BBkBj+6
-+lUXQvalaKMBrp/NFsyghKL9hlz1EQzizXLKD3g4CbIRwqmdWHhDy467FEAtCyoP
-xaeQX5gWR6DjaxsD2nuzOBq5rYK597XEPDnByrJN+7TWsK1oJhIu1rrh1cWRJGyZ
-sm2NA2H6cXwpc9HBXpWIgZ++21u3ph6bx1uY6dDldfy+zxfZdTwfnko+4Lr5uT87
-gHtSWkqrZh1hbMHQJvtsI9r1ZasLL6wbND9mvMidHDzxx8Oe9mPX0I9xVOAXPwZT
-pw==
-=xu+R
------END PGP MESSAGE-----
+  安装方法：
+  https://raspberrypi.stackexchange.com/questions/547/how-do-i-attach-a-gps-receiver
+  http://www.pridopia.co.uk/rs-pi-set-usb-gps.html
+  https://area-51.blog/2012/06/18/getting-gps-to-work-on-a-raspberry-pi/
+  遇到了 GPS timeout 的问题，解决：
+  https://raspberrypi.stackexchange.com/questions/28483/cgps-gps-timeout
+  #+BEGIN_SRC sh
+  sudo killall gpsd
+  #+END_SRC
+  Edit /etc/default/gpsd file, input your device name and parameters:
+  #+BEGIN_SRC sh
+  sudo systemctl enable gpsd.socket
+  sudo systemctl start gpsd.socket 
+  cgps -s
+  #+END_SRC
+
+* 备忘 :secret:
+  -----BEGIN PGP MESSAGE-----
+  Version: GnuPG v2
+
+  jA0EBwMC8zSXGRaRECbk0sB/AcsUqPslprbHoHRQ5GPC0Qu3eZJT6wiJKPJTA7u7
+  6tMjxejzM21We1hTnp/3pv4s+cKfA2QvoG/l4x8ZMQw4WrCysJgESbODkXf0PkRd
+  sTVqPLKZTYyAiLKRn2iChVrWil3S1Wfpf+eTxFOGnFU6JMyL3Pp3lTq0+BBkBj+6
+  +lUXQvalaKMBrp/NFsyghKL9hlz1EQzizXLKD3g4CbIRwqmdWHhDy467FEAtCyoP
+  xaeQX5gWR6DjaxsD2nuzOBq5rYK597XEPDnByrJN+7TWsK1oJhIu1rrh1cWRJGyZ
+  sm2NA2H6cXwpc9HBXpWIgZ++21u3ph6bx1uY6dDldfy+zxfZdTwfnko+4Lr5uT87
+  gHtSWkqrZh1hbMHQJvtsI9r1ZasLL6wbND9mvMidHDzxx8Oe9mPX0I9xVOAXPwZT
+  pw==
+  =xu+R
+  -----END PGP MESSAGE-----
