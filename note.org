@@ -254,14 +254,12 @@
          #+END_SRC
 
       3. 成功在pi 中运行 mosquito-test:
-         - 启动 mosquito
-         - ./test-sub
-         - ./test-pub
+         - 启动 mosquito, 打开了 mqtt 服务
+         - ./test-sub 订阅者通过 server 订阅主题
+         - ./test-pub 发布者向 server 发布主题
 
          #+ATTR_ORG: :width 900
          [[file:note.org_imgs/20170821_094230_3908q8M.png]]
-
-
 
 
 
@@ -284,7 +282,53 @@
 **** 实践
      [[https://mosquitto.org/api/index/Functions.html][mosquito API]]
 
+** What is MQTT
+   [[file:Images/mqtt.png]]
+
+   函数的定义可参考 [[file:/home/ziyuan/Downloads/mosquitto-1.4.14/lib/mosquitto.h][mosquito.h]]
+
+
+** 使用MQTT实现 pi 和 PC 端的通信
+*** PC-->pi
+    1. 在 PC 上启动 mosquito , 发布主题和内容：
+       #+BEGIN_SRC sh
+       mosquitto_pub -t test -m hahaaaa
+       #+END_SRC
+       其中 -t 指定主题 -m 指定内容
+       PC上的这条命令并不关心谁来订阅主题。而 pi 上的程序来指定 PC 的IP 和端口。
+    2. 在 pi 上订阅主题
+       核心代码：
+       #+BEGIN_SRC C
+       struct mosquitto *mosq = NULL;
+       mosquitto_lib_init();
+       mosq = mosquitto_new (NULL, true, NULL);
+       int ret = mosquitto_connect (mosq, MQTT_HOSTNAME, MQTT_PORT, 0);
+       ret = mosquitto_subscribe(mosq, NULL, MQTT_TOPIC, 0);
+       mosquitto_message_callback_set (mosq, my_message_callback);
+       mosquitto_loop_forever (mosq, -1, 1);
+       #+END_SRC
+*** pi-->PC
+    1. 在 PC 上启动 mosquito , 订阅主题：
+       #+BEGIN_SRC sh
+       mosquitto_sub -t test 
+       #+END_SRC
+       PC上的这条命令并不关心谁发布了主题。pi 上的程序来指定 PC 的IP 和端口，向PC定向发布。
+
+    2. 在 pi 上发布主题
+
+       核心代码：
+       #+BEGIN_SRC C
+       struct mosquitto *mosq = NULL;
+       mosquitto_lib_init();
+       mosq = mosquitto_new (NULL, true, NULL);
+       int ret = mosquitto_connect (mosq, MQTT_HOSTNAME, MQTT_PORT, 0);
+       ret = mosquitto_publish (mosq, NULL, MQTT_TOPIC, strlen (text), text, 0, false);
+       sleep (1);
+       #+END_SRC
+
+
 * GPS
+
 
   安装方法：
   https://raspberrypi.stackexchange.com/questions/547/how-do-i-attach-a-gps-receiver
@@ -302,17 +346,27 @@
   cgps -s
   #+END_SRC
 
+* Eclipse
+  [[https://askubuntu.com/questions/695382/how-to-install-eclipse-using-its-installer][安装Eclipse]]
 * 备忘 :secret:
-  -----BEGIN PGP MESSAGE-----
-  Version: GnuPG v2
+-----BEGIN PGP MESSAGE-----
+Version: GnuPG v2
 
-  jA0EBwMC8zSXGRaRECbk0sB/AcsUqPslprbHoHRQ5GPC0Qu3eZJT6wiJKPJTA7u7
-  6tMjxejzM21We1hTnp/3pv4s+cKfA2QvoG/l4x8ZMQw4WrCysJgESbODkXf0PkRd
-  sTVqPLKZTYyAiLKRn2iChVrWil3S1Wfpf+eTxFOGnFU6JMyL3Pp3lTq0+BBkBj+6
-  +lUXQvalaKMBrp/NFsyghKL9hlz1EQzizXLKD3g4CbIRwqmdWHhDy467FEAtCyoP
-  xaeQX5gWR6DjaxsD2nuzOBq5rYK597XEPDnByrJN+7TWsK1oJhIu1rrh1cWRJGyZ
-  sm2NA2H6cXwpc9HBXpWIgZ++21u3ph6bx1uY6dDldfy+zxfZdTwfnko+4Lr5uT87
-  gHtSWkqrZh1hbMHQJvtsI9r1ZasLL6wbND9mvMidHDzxx8Oe9mPX0I9xVOAXPwZT
-  pw==
-  =xu+R
-  -----END PGP MESSAGE-----
+jA0EBwMCK4DXehVJV3zk0ukBuvxCugeInGxrzrV9hrVFz/vpEF9VQ7+CxI15a9Lz
+eJHPG17n+mVSKtP8ZPYalwf6GJp1SeWgB4C2BY0X0ariSi3ouUkCzDh1mCq+BDFK
+feK5O2oea223fI/tzUBtSACR7tMbymClOi2TsHB7icO2XFfc9H8EjziB/+LSbsQE
+nbCQKgnQBnxvL7AJgrv80Jav/7Hi9znrEJX3cxDYKhDFB9dmGA+f9WhIE6ug/GrU
+zoKvsd7TG3S7hGlqHQDFLbp6G/Hu3vs6/MajYKWmE0C7wh6BYYDahXqJG8bBhqFb
+yKtAIDjZ+PC/8wKQBceox+8JtIVn1X9S4DRVjYeAEokWKeVhvNT5CwcLkCVc9HlM
+sWKNHnkknOdkiHgM76o+x3saD7Q4KY6MgpEfGJfCyHHahQQrCLR+dzSuEIqGBnht
+qcQz+u7Ziv5UHE8ZR54Wn98MBS77EuXTil8bIcN+5PzSzWZ1P5LGsu48pI882j3G
+Dm6jLlLubrWbbvPCvM6V47fV5NkqZW8HlLrGm60vTWrFEAxqbnzYAbhbijoLVowY
+x5ozftjaUGzYnUDIOWCgCdqFEN4+snXPU1CCtu1mKE/CKCcdEbgeHc4b8W+xn9uu
+0kaKYXjp3dHtnFoxNhJ/OHBbou9OIfh1gU1Mst4MbPOYWCenwfNpIGSPOPZlPoVN
+GMANzMZXPXKlgt0z1pTxfs83RHotczat8SUJJRyvtzmnlx5OJwQU4wiWNV+dKEqO
+PlgOAZqvS3omlDnnHyGcK5TNP/6SWZgUeDIkBycnC4w343zDvnP/wG3hSvT6AsHX
+oAf9CMNOdKRfZeZOaOk8AEHRPFWWNMFjCFUWncTS8OHmuP8DwaVxSYVCIo6Wp5E5
+ajDK9iQ0FNRnPJwLIcYUWFKoz6uooIi0XXGy37Hq6r6remjTTD2t7eJ1CLqG5hiy
+agWPf9X55z8nqDe7GIVdeQ==
+=UhRA
+-----END PGP MESSAGE-----

@@ -71,7 +71,11 @@
      - 加入结束符： ']' ,如需报告，继续加分割符 ','
      - add status report if a new one is available
      - end of JSON datagram payload
-     - send datagram to server
+     - 向 server [[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/lora_pkt_fwd.c::1851][send]] datagram
+       #+BEGIN_SRC C
+       send(sock_up, (void *)buff_up, buff_index, 0);
+       #+END_SRC
+
      - wait for acknowledge (in 2 times, to catch extra packets)
        从 sockt_up 接收数据
        使用系统函数 clock_gettime 记录接收时间 recv_time
@@ -93,14 +97,14 @@
      [[jit_queue_init(*queue)][jit_queue_init]](&jit_queue)
    - *进入循环*:
      - 判断在若干次 PULL Data 无应答后，是否自动退出
-     - 发送 PULL 请求并记录时间
+     - [[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/lora_pkt_fwd.c::2075][发送]] PULL 请求并记录时间
        使用 sockt_down 发送 buff_req
        使用系统函数 clock_gettime 记录发送时间 send_time
        #+BEGIN_SRC C
        recv_time = send_time;
        #+END_SRC
      - 在接收时间窗口内*循环读 sockt_down 接收数据报*:
-       - 尝试接收 sockt_down
+       - 尝试[[file:~/Program/IoT/packet_forwarder-master/lora_pkt_fwd/src/lora_pkt_fwd.c::2088][接收]] sockt_down
          #+BEGIN_SRC C
          msg_len = recv(sock_down, (void *)buff_down, (sizeof buff_down)-1, 0);
          #+END_SRC
@@ -302,6 +306,60 @@
 ** jit_peek()
    完成优先级排序，去除不可能发送的pkt
 ** send_tx_ack()
+
+
+* 体系架构
+
+[[file:Images/archi.jpg]]
+
+参考文件： [[file:~/Program/IoT/%E5%AE%87%E6%B3%BD%E7%A7%91%E6%8A%80-LoRawan%E5%A5%97%E4%BB%B6%E5%86%85%E9%83%A8%E8%B5%84%E6%96%99%EF%BC%88%E5%AF%86%E7%BA%A7%EF%BC%9A%E4%B8%80%E7%BA%A7%EF%BC%89j/semtech%E5%8E%9F%E5%8E%82Lorawan%E8%AE%AD%E7%BB%83%E8%90%A5%E8%B5%84%E6%96%99/Lora%20%20boot%20camp/Slides/Lora%20Technology%20Deep%20Dive.pdf][Lora Technology Deep Dive.pdf]]
+
+[[file:code_understand.org_imgs/20170823_211156_2192aNF.png]]
+
+- Uplink (Sent by node)
+- Downlink (Sent by gateway) – No CRC Filed
+
+
+** Class A Devices
+End-devices of Class A allow for bi-directional communications
+whereby each end-device’s uplink transmission is followed by
+two short downlink receive windows.
+
+The transmission slot scheduled by the end-device is based on
+its own communication needs with a small variation based on a
+random time basis (ALOHA-type of protocol).
+
+This Class A operation is the lowest power end-device system
+for applications that only require downlink communication from
+the server shortly after the end-device has sent an uplink
+transmission.
+
+Downlink communications from the server at any other time
+will have to wait until the next scheduled uplink.
+
+** Class B Devices
+End-devices of Class B allow for more receive slots.
+In addition to the Class A random receive windows, Class B
+devices open extra receive windows at scheduled times.
+
+In order for the End-device to open it receive window at the
+scheduled time it receives a time synchronized Beacon from
+the gateway.
+
+This allows the server to know when the end-device is
+listening.
+
+** Class C Devices
+End-devices of Class C have nearly continuously open receive
+windows, only closed when transmitting.
+
+Class C end-device will use more power to operate than Class
+A or Class B but they offer the lowest latency for server to end-
+device communication.
+
+** SX1301 Concentrator Board
+
+[[file:code_understand.org_imgs/20170823_212230_2192nXL.png]]
 * Footnotes
 
 [fn:1] XTAL ― 这应该是跟Lora 协议中 Class B 相关的概念
