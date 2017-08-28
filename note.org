@@ -8,7 +8,7 @@
 
      raspi-config配置SPI失败时可以通过修改 ~/boot/config.txt~ 来打开SPI:
      http://www.jianshu.com/p/47258276645f
-
+     
   2. 下载源文件并编译
      #+BEGIN_SRC sh
      git clone https://github.com/Lora-net/lora_gateway.git
@@ -345,6 +345,13 @@
   sudo systemctl start gpsd.socket 
   cgps -s
   #+END_SRC
+
+** 使用
+   http://www.catb.org/gpsd/
+
+   fatal error: gps.h: 没有那个文件或目录：
+   https://stackoverflow.com/questions/32000328/libgps-c-code-example
+
 
 * Eclipse
   [[https://askubuntu.com/questions/695382/how-to-install-eclipse-using-its-installer][安装Eclipse]]
